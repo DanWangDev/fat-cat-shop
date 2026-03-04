@@ -21,9 +21,9 @@ export function timeAgo(dateString: string): string {
 }
 
 export const VALID_STATUS_TRANSITIONS: Record<string, string[]> = {
-  pending: ["confirmed", "cancelled"],
-  confirmed: ["shipped", "cancelled"],
-  shipped: ["delivered", "cancelled"],
+  pending: ["confirmed", "shipped", "delivered", "completed", "cancelled"],
+  confirmed: ["shipped", "delivered", "completed", "cancelled"],
+  shipped: ["delivered", "completed", "cancelled"],
   delivered: ["completed", "returned", "cancelled"],
   completed: ["returned"],
   returned: [],

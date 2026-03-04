@@ -57,7 +57,7 @@ export default function CartPage() {
       <div className="mt-8 space-y-4">
         {items.map((item) => (
           <div
-            key={item.productId}
+            key={`${item.productId}-${item.variantId ?? ""}`}
             className="border-3 border-comic-ink bg-comic-panel p-4 shadow-comic"
           >
             {/* Mobile: stacked layout / Desktop: horizontal */}
@@ -95,7 +95,7 @@ export default function CartPage() {
                   </h3>
                   {/* Remove button - visible on all sizes */}
                   <button
-                    onClick={() => removeItem(item.productId)}
+                    onClick={() => removeItem(item.productId, item.variantId)}
                     className="flex min-h-[44px] min-w-[44px] flex-shrink-0 cursor-pointer items-center justify-center text-comic-ink/40 transition-colors duration-200 hover:text-comic-red"
                     aria-label={`Remove ${item.title} from cart`}
                   >
@@ -116,6 +116,11 @@ export default function CartPage() {
                     </svg>
                   </button>
                 </div>
+                {item.variantLabel && (
+                  <p className="text-xs font-bold text-comic-ink/50">
+                    {item.variantLabel}
+                  </p>
+                )}
                 <p className="mt-1 text-sm font-bold text-comic-red">
                   {formatPrice(item.price)}
                 </p>
@@ -127,7 +132,7 @@ export default function CartPage() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() =>
-                    updateQuantity(item.productId, item.quantity - 1)
+                    updateQuantity(item.productId, item.quantity - 1, item.variantId)
                   }
                   className="flex h-9 w-9 min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center border-2 border-comic-ink font-bold text-comic-ink transition-all duration-200 hover:bg-comic-red/10 active:bg-comic-red/20"
                   aria-label={`Decrease quantity of ${item.title}`}
@@ -139,7 +144,7 @@ export default function CartPage() {
                 </span>
                 <button
                   onClick={() =>
-                    updateQuantity(item.productId, item.quantity + 1)
+                    updateQuantity(item.productId, item.quantity + 1, item.variantId)
                   }
                   className="flex h-9 w-9 min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center border-2 border-comic-ink font-bold text-comic-ink transition-all duration-200 hover:bg-comic-red/10 active:bg-comic-red/20"
                   aria-label={`Increase quantity of ${item.title}`}

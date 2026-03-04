@@ -9,22 +9,36 @@ import {
   products,
   discountCodes,
   discountCodeUses,
+  recommendationCodes,
+  recommendationCodeUses,
+  productVariants,
 } from "@/lib/db/schema";
 import { checkoutSchema } from "@/lib/validators";
 import { nanoid } from "nanoid";
 import { eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod/v4";
-import { sendOrderConfirmation } from "@/lib/email";
+import { sendOrderConfirmation, sendOwnerNewOrder } from "@/lib/email";
 import { computeDiscountAmount } from "@/app/api/validate-discount/route";
+import { getSiteSettings } from "@/lib/site-settings";
 
 const checkoutRequestSchema = checkoutSchema.extend({
   items: z.array(
     z.object({
       productId: z.string(),
+      variantId: z.string().optional(),
       quantity: z.number().int().min(1),
     }),
   ),
 });
+
+function generateRecommendationCode(): string {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let code = "FC-";
+  for (let i = 0; i < 4; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
 
 function generateOrderNumber(): string {
   const now = new Date();
@@ -50,6 +64,13 @@ export async function POST(req: NextRequest) {
 
     const productMap = new Map(dbProducts.map((p) => [p.id, p]));
 
+    // Fetch variants if needed
+    const variantIds = parsed.items.map((i) => i.variantId).filter(Boolean) as string[];
+    const dbVariants = variantIds.length > 0
+      ? await db.select().from(productVariants).where(inArray(productVariants.id, variantIds))
+      : [];
+    const variantMap = new Map(dbVariants.map((v) => [v.id, v]));
+
     for (const item of parsed.items) {
       const product = productMap.get(item.productId);
       if (!product || product.status !== "active") {
@@ -58,8 +79,23 @@ export async function POST(req: NextRequest) {
           { status: 400 },
         );
       }
-      // Stock check
-      if (product.stock !== null && product.stock < item.quantity) {
+
+      // Stock check — variant stock takes priority if variantId is present
+      if (item.variantId) {
+        const variant = variantMap.get(item.variantId);
+        if (!variant) {
+          return NextResponse.json(
+            { error: `Variant not found: ${item.variantId}` },
+            { status: 400 },
+          );
+        }
+        if (variant.stock !== null && variant.stock < item.quantity) {
+          return NextResponse.json(
+            { error: `Not enough stock for "${product.title}"` },
+            { status: 400 },
+          );
+        }
+      } else if (product.stock !== null && product.stock < item.quantity) {
         return NextResponse.json(
           { error: `Not enough stock for "${product.title}"` },
           { status: 400 },
@@ -116,7 +152,9 @@ export async function POST(req: NextRequest) {
       // Compute subtotal first to calculate discount
       const tempSubtotal = parsed.items.reduce((sum, item) => {
         const product = productMap.get(item.productId)!;
-        return sum + product.price * item.quantity;
+        const variant = item.variantId ? variantMap.get(item.variantId) : null;
+        const unitPrice = variant?.priceOverride ?? product.price;
+        return sum + unitPrice * item.quantity;
       }, 0);
 
       appliedDiscount = {
@@ -172,14 +210,17 @@ export async function POST(req: NextRequest) {
 
     const lineItems = parsed.items.map((item) => {
       const product = productMap.get(item.productId)!;
+      const variant = item.variantId ? variantMap.get(item.variantId) : null;
+      const unitPrice = variant?.priceOverride ?? product.price;
       return {
         id: nanoid(),
         orderId,
         productId: item.productId,
+        variantId: item.variantId ?? null,
         title: product.title,
         quantity: item.quantity,
-        unitPrice: product.price,
-        total: product.price * item.quantity,
+        unitPrice,
+        total: unitPrice * item.quantity,
       };
     });
 
@@ -252,29 +293,106 @@ export async function POST(req: NextRequest) {
 
     // Decrement stock atomically for each item
     for (const item of parsed.items) {
-      const product = productMap.get(item.productId)!;
-      if (product.stock !== null) {
-        db.update(products)
-          .set({ stock: sql`stock - ${item.quantity}` })
-          .where(eq(products.id, item.productId))
+      if (item.variantId) {
+        const variant = variantMap.get(item.variantId);
+        if (variant && variant.stock !== null) {
+          db.update(productVariants)
+            .set({ stock: sql`stock - ${item.quantity}` })
+            .where(eq(productVariants.id, item.variantId))
+            .run();
+        }
+      } else {
+        const product = productMap.get(item.productId)!;
+        if (product.stock !== null) {
+          db.update(products)
+            .set({ stock: sql`stock - ${item.quantity}` })
+            .where(eq(products.id, item.productId))
+            .run();
+        }
+      }
+    }
+
+    // Record recommendation code usage if provided
+    if (parsed.recommendationCode) {
+      const recCode = db
+        .select()
+        .from(recommendationCodes)
+        .where(eq(recommendationCodes.code, parsed.recommendationCode.toUpperCase()))
+        .get();
+
+      if (recCode) {
+        db.insert(recommendationCodeUses)
+          .values({
+            id: nanoid(),
+            codeId: recCode.id,
+            usedByEmail: parsed.email.toLowerCase(),
+            orderId,
+            usedAt: now,
+          })
+          .run();
+
+        db.update(orders)
+          .set({ recommendationCode: recCode.code })
+          .where(eq(orders.id, orderId))
           .run();
       }
     }
 
+    // Generate recommendation code if feature is enabled
+    let newRecCode: string | null = null;
+    const settings = await getSiteSettings();
+    if (settings.enable_recommendation_codes === "true") {
+      newRecCode = generateRecommendationCode();
+      // Ensure uniqueness
+      let attempts = 0;
+      while (attempts < 10) {
+        const existing = db
+          .select()
+          .from(recommendationCodes)
+          .where(eq(recommendationCodes.code, newRecCode))
+          .get();
+        if (!existing) break;
+        newRecCode = generateRecommendationCode();
+        attempts++;
+      }
+
+      db.insert(recommendationCodes)
+        .values({
+          id: nanoid(),
+          code: newRecCode,
+          orderId,
+          customerEmail: parsed.email.toLowerCase(),
+          createdAt: now,
+        })
+        .run();
+    }
+
     // Send order confirmation email (fire-and-forget)
+    const emailItems = lineItems.map((li) => ({
+      title: li.title,
+      quantity: li.quantity,
+      unitPrice: li.unitPrice,
+      total: li.total,
+    }));
+
     sendOrderConfirmation({
       to: parsed.email,
       orderNumber,
       firstName: parsed.firstName,
-      items: lineItems.map((li) => ({
-        title: li.title,
-        quantity: li.quantity,
-        unitPrice: li.unitPrice,
-        total: li.total,
-      })),
+      items: emailItems,
       subtotal,
       shippingCost,
       total,
+      recommendationCode: newRecCode,
+    }).catch(() => {});
+
+    // Notify shop owner (fire-and-forget)
+    sendOwnerNewOrder({
+      orderNumber,
+      customerName: `${parsed.firstName} ${parsed.lastName}`,
+      email: parsed.email,
+      total,
+      items: emailItems,
     }).catch(() => {});
 
     if (parsed.paymentMethod === "stripe") {
@@ -287,7 +405,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    return NextResponse.json({ orderNumber });
+    return NextResponse.json({ orderNumber, recommendationCode: newRecCode });
   } catch (err) {
     if (err instanceof z.ZodError) {
       return NextResponse.json(

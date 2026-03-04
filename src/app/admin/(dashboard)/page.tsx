@@ -6,6 +6,7 @@ import { DashboardOrderColumn } from "@/components/admin/dashboard-order-column"
 import { CancelledOrdersSection } from "@/components/admin/cancelled-orders-section";
 import { Sparkline } from "@/components/admin/sparkline";
 import { aggregateToday } from "@/lib/analytics";
+import Link from "next/link";
 
 function toOrderCard(order: {
   id: string;
@@ -44,12 +45,18 @@ export default async function AdminDashboardPage() {
   });
   const revenueData = last30Days.map((d) => d.revenue);
   const ordersData = last30Days.map((d) => d.ordersCount);
+  const visitorsData = last30Days.map((d) => d.uniqueVisitors);
+  const pageViewsData = last30Days.map((d) => d.pageViews);
+
+  const todaySummary = last30Days.length > 0 ? last30Days[last30Days.length - 1] : null;
 
   const stats = [
     { label: "Products", value: productCount.count.toString() },
     { label: "Orders", value: orderCount.count.toString(), sparklineData: ordersData, sparklineColor: "#f59e0b" },
     { label: "Customers", value: customerCount.count.toString() },
     { label: "Revenue", value: formatPrice(revenueResult.total), sparklineData: revenueData, sparklineColor: "#0d9488" },
+    { label: "Visitors Today", value: (todaySummary?.uniqueVisitors ?? 0).toString(), sparklineData: visitorsData, sparklineColor: "#6366f1" },
+    { label: "Page Views Today", value: (todaySummary?.pageViews ?? 0).toString(), sparklineData: pageViewsData, sparklineColor: "#8b5cf6" },
   ];
 
   const [unfulfilledOrders, shippedOrders, deliveredOrders, cancelledOrders] =
@@ -106,7 +113,7 @@ export default async function AdminDashboardPage() {
         Dashboard
       </h1>
 
-      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {stats.map((stat) => (
           <div
             key={stat.label}
@@ -125,6 +132,15 @@ export default async function AdminDashboardPage() {
             )}
           </div>
         ))}
+      </div>
+
+      <div className="mt-3 text-right">
+        <Link
+          href="/admin/analytics"
+          className="text-sm font-bold text-teal-primary hover:underline"
+        >
+          View Full Analytics &rarr;
+        </Link>
       </div>
 
       <div className="mt-8 grid grid-cols-1 gap-4 lg:grid-cols-3">

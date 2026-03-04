@@ -1,6 +1,7 @@
 import { isAuthenticated } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { AdminLayoutClient } from "@/components/admin/admin-layout-client";
+import { getSiteSettings } from "@/lib/site-settings";
 
 export default async function AdminDashboardLayout({
   children,
@@ -12,5 +13,11 @@ export default async function AdminDashboardLayout({
     redirect("/admin/login");
   }
 
-  return <AdminLayoutClient>{children}</AdminLayoutClient>;
+  const settings = await getSiteSettings();
+
+  return (
+    <AdminLayoutClient shopName={settings.shop_name}>
+      {children}
+    </AdminLayoutClient>
+  );
 }

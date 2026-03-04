@@ -13,6 +13,9 @@ export interface SiteSettingsMap {
     banner_image_url: string;
     shop_name: string;
     theme_config: string;
+    owner_email: string;
+    default_address: string;
+    enable_recommendation_codes: string;
 }
 
 const DEFAULTS: SiteSettingsMap = {
@@ -26,6 +29,9 @@ const DEFAULTS: SiteSettingsMap = {
     banner_image_url: "",
     shop_name: "Fat Cat",
     theme_config: "",
+    owner_email: "grace.by.wang@gmail.com",
+    default_address: '{"addressLine1":"Brook Grn","city":"London","postalCode":"W6 7BS","country":"United Kingdom"}',
+    enable_recommendation_codes: "false",
 };
 
 export async function getSiteSettings(): Promise<SiteSettingsMap> {

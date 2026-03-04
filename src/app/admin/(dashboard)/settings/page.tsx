@@ -12,6 +12,9 @@ interface Settings {
     favicon_url: string;
     banner_image_url: string;
     shop_name: string;
+    owner_email: string;
+    default_address: string;
+    enable_recommendation_codes: string;
 }
 
 export default function AdminSettingsPage() {
@@ -106,7 +109,7 @@ export default function AdminSettingsPage() {
                 <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-2">
                     <ImageUploadCard
                         title="Favicon"
-                        description="Browser tab icon (recommended: 32×32 or 64×64 PNG)"
+                        description="PNG, SVG, or ICO — any size"
                         currentUrl={settings.favicon_url}
                         settingKey="favicon_url"
                         uploading={uploading === "favicon_url"}
@@ -195,6 +198,56 @@ export default function AdminSettingsPage() {
                         saving={saving === "footer_copyright"}
                         saved={success === "footer_copyright"}
                         onSave={saveSetting}
+                    />
+                </div>
+            </section>
+
+            {/* Notifications Section */}
+            <section className="mt-10">
+                <h2 className="font-display text-lg font-bold text-warm-brown">
+                    Notifications
+                </h2>
+                <div className="mt-4 space-y-4">
+                    <TextSettingRow
+                        label="Owner Notification Email"
+                        description="Email address that receives new order notifications"
+                        settingKey="owner_email"
+                        value={settings.owner_email}
+                        saving={saving === "owner_email"}
+                        saved={success === "owner_email"}
+                        onSave={saveSetting}
+                    />
+                </div>
+            </section>
+
+            {/* Default Address Section */}
+            <section className="mt-10">
+                <h2 className="font-display text-lg font-bold text-warm-brown">
+                    Default Shipping Address
+                </h2>
+                <p className="mt-1 text-xs text-warm-brown/50">
+                    Pre-filled for customers at checkout. They can still edit it.
+                </p>
+                <DefaultAddressEditor
+                    value={settings.default_address}
+                    saving={saving === "default_address"}
+                    saved={success === "default_address"}
+                    onSave={(json) => saveSetting("default_address", json)}
+                />
+            </section>
+
+            {/* Features Section */}
+            <section className="mt-10">
+                <h2 className="font-display text-lg font-bold text-warm-brown">
+                    Features
+                </h2>
+                <div className="mt-4 space-y-4">
+                    <ToggleSettingRow
+                        label="Recommendation Codes"
+                        description="Generate a shareable recommendation code for each order. New customers can enter a code at checkout."
+                        enabled={settings.enable_recommendation_codes === "true"}
+                        saving={saving === "enable_recommendation_codes"}
+                        onToggle={(on) => saveSetting("enable_recommendation_codes", on ? "true" : "false")}
                     />
                 </div>
             </section>
@@ -349,6 +402,127 @@ function ImageUploadCard({
                 onChange={handleFileSelect}
                 className="hidden"
             />
+        </div>
+    );
+}
+
+function DefaultAddressEditor({
+    value,
+    saving,
+    saved,
+    onSave,
+}: {
+    value: string;
+    saving: boolean;
+    saved: boolean;
+    onSave: (json: string) => void;
+}) {
+    const parsed = (() => {
+        try {
+            return JSON.parse(value);
+        } catch {
+            return { addressLine1: "", city: "", postalCode: "", country: "" };
+        }
+    })();
+
+    const [addressLine1, setAddressLine1] = useState<string>(parsed.addressLine1 ?? "");
+    const [city, setCity] = useState<string>(parsed.city ?? "");
+    const [postalCode, setPostalCode] = useState<string>(parsed.postalCode ?? "");
+    const [country, setCountry] = useState<string>(parsed.country ?? "");
+
+    const currentJson = JSON.stringify({ addressLine1, city, postalCode, country });
+    const isDirty = currentJson !== value;
+
+    function handleSave() {
+        onSave(currentJson);
+    }
+
+    return (
+        <div className="mt-4 rounded-xl bg-white p-5 shadow-sm">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                    <label className="text-sm font-medium text-warm-brown">Address Line 1</label>
+                    <input
+                        type="text"
+                        value={addressLine1}
+                        onChange={(e) => setAddressLine1(e.target.value)}
+                        className="mt-1 w-full rounded-lg border border-warm-brown/20 px-4 py-2 text-sm text-warm-brown outline-none transition-colors focus:border-teal-primary"
+                    />
+                </div>
+                <div>
+                    <label className="text-sm font-medium text-warm-brown">City</label>
+                    <input
+                        type="text"
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                        className="mt-1 w-full rounded-lg border border-warm-brown/20 px-4 py-2 text-sm text-warm-brown outline-none transition-colors focus:border-teal-primary"
+                    />
+                </div>
+                <div>
+                    <label className="text-sm font-medium text-warm-brown">Postcode</label>
+                    <input
+                        type="text"
+                        value={postalCode}
+                        onChange={(e) => setPostalCode(e.target.value)}
+                        className="mt-1 w-full rounded-lg border border-warm-brown/20 px-4 py-2 text-sm text-warm-brown outline-none transition-colors focus:border-teal-primary"
+                    />
+                </div>
+                <div>
+                    <label className="text-sm font-medium text-warm-brown">Country</label>
+                    <input
+                        type="text"
+                        value={country}
+                        onChange={(e) => setCountry(e.target.value)}
+                        className="mt-1 w-full rounded-lg border border-warm-brown/20 px-4 py-2 text-sm text-warm-brown outline-none transition-colors focus:border-teal-primary"
+                    />
+                </div>
+            </div>
+            <div className="mt-4 flex justify-end">
+                <button
+                    onClick={handleSave}
+                    disabled={saving || !isDirty}
+                    className="rounded-full bg-teal-primary px-5 py-1.5 text-xs font-bold text-white transition-colors hover:bg-teal-dark disabled:opacity-50"
+                >
+                    {saving ? "Saving..." : saved ? "Saved" : "Save Address"}
+                </button>
+            </div>
+        </div>
+    );
+}
+
+function ToggleSettingRow({
+    label,
+    description,
+    enabled,
+    saving,
+    onToggle,
+}: {
+    label: string;
+    description: string;
+    enabled: boolean;
+    saving: boolean;
+    onToggle: (on: boolean) => void;
+}) {
+    return (
+        <div className="flex items-center justify-between rounded-xl bg-white p-5 shadow-sm">
+            <div>
+                <p className="text-sm font-medium text-warm-brown">{label}</p>
+                <p className="text-xs text-warm-brown/50">{description}</p>
+            </div>
+            <button
+                type="button"
+                onClick={() => onToggle(!enabled)}
+                disabled={saving}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors disabled:opacity-50 ${
+                    enabled ? "bg-teal-primary" : "bg-warm-brown/20"
+                }`}
+            >
+                <span
+                    className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${
+                        enabled ? "translate-x-6" : "translate-x-1"
+                    }`}
+                />
+            </button>
         </div>
     );
 }

@@ -29,6 +29,27 @@
       "when": 1771456346077,
       "tag": "0003_bouncy_longshot",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1771500972203,
+      "tag": "0004_absent_dark_beast",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1771501661942,
+      "tag": "0005_stiff_bastion",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1772618922340,
+      "tag": "0006_cultured_skrulls",
+      "breakpoints": true
     }
   ]
 }

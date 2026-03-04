@@ -4,19 +4,19 @@ import { useState } from "react";
 import { AdminSidebar } from "@/components/admin/sidebar";
 import { MobileSidebarDrawer } from "@/components/admin/mobile-sidebar-drawer";
 
-export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
+export function AdminLayoutClient({ children, shopName }: { children: React.ReactNode; shopName: string }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <div className="flex h-screen bg-warm-gray">
       {/* Desktop sidebar */}
       <div className="hidden lg:flex">
-        <AdminSidebar />
+        <AdminSidebar shopName={shopName} />
       </div>
 
       {/* Mobile sidebar drawer */}
       <MobileSidebarDrawer open={sidebarOpen} onClose={() => setSidebarOpen(false)}>
-        <AdminSidebar onNavClick={() => setSidebarOpen(false)} />
+        <AdminSidebar shopName={shopName} onNavClick={() => setSidebarOpen(false)} />
       </MobileSidebarDrawer>
 
       <div className="flex flex-1 flex-col overflow-hidden">
@@ -35,7 +35,7 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
             </svg>
           </button>
           <span className="font-display text-lg font-bold text-teal-primary">
-            Fat Cat Admin
+            {shopName} Admin
           </span>
         </header>
 

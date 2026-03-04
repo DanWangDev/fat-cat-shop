@@ -1,5 +1,7 @@
 # Tier 3 Implementation Plan — Fat Cat Shop
 
+> **Status: COMPLETE** — All 5 features (emails, analytics, stock, cross-sell, discount codes) merged in PR #2 (2026-02-19). See `docs/CHANGELOG.md` for summary.
+
 ## Context
 
 Tiers 1 and 2 are complete and pushed (`feat/ui-ux-improvements`). Tier 3 adds five larger features requiring new packages, schema migrations, or both. Implement in the order shown — Batch A and B can be parallelised within each batch; Batch C is sequential.

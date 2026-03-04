@@ -16,6 +16,7 @@ export function OrderStatusUpdater({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [payLoading, setPayLoading] = useState(false);
+  const [selectedPaymentStatus, setSelectedPaymentStatus] = useState(paymentStatus);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState("");
 
@@ -53,8 +54,7 @@ export function OrderStatusUpdater({
     }
   }
 
-  async function handlePaymentToggle() {
-    const newStatus = paymentStatus === "paid" ? "unpaid" : "paid";
+  async function handlePaymentChange(newStatus: string) {
     setPayLoading(true);
     setError(null);
 
@@ -66,6 +66,7 @@ export function OrderStatusUpdater({
       });
 
       if (res.ok) {
+        setSelectedPaymentStatus(newStatus);
         router.refresh();
       } else {
         const data = await res.json();
@@ -84,30 +85,19 @@ export function OrderStatusUpdater({
         Update Status
       </h2>
 
-      {/* Payment Status Toggle */}
+      {/* Payment Status */}
       <div className="mt-4 flex items-center justify-between rounded-lg border border-warm-brown/10 px-4 py-3">
-        <div>
-          <p className="text-sm font-medium text-warm-brown">Payment</p>
-          <p className="text-xs text-warm-brown/50 capitalize">
-            {paymentStatus}
-          </p>
-        </div>
-        <button
-          onClick={handlePaymentToggle}
-          disabled={payLoading || paymentStatus === "refunded"}
-          className={`rounded-full px-4 py-1.5 text-xs font-bold transition-colors disabled:opacity-50 ${paymentStatus === "paid"
-              ? "bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
-              : "bg-green-100 text-green-800 hover:bg-green-200"
-            }`}
+        <p className="text-sm font-medium text-warm-brown">Payment</p>
+        <select
+          value={selectedPaymentStatus}
+          onChange={(e) => handlePaymentChange(e.target.value)}
+          disabled={payLoading}
+          className="rounded-lg border border-warm-brown/20 px-3 py-1.5 text-sm text-warm-brown outline-none focus:border-teal-primary disabled:opacity-50"
         >
-          {payLoading
-            ? "Updating..."
-            : paymentStatus === "paid"
-              ? "Mark Unpaid"
-              : paymentStatus === "refunded"
-                ? "Refunded"
-                : "Mark Paid"}
-        </button>
+          <option value="unpaid">Unpaid</option>
+          <option value="paid">Paid</option>
+          <option value="refunded">Refunded</option>
+        </select>
       </div>
 
       {/* Status Transition */}

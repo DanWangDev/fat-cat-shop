@@ -39,7 +39,10 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const activeTheme = await getActiveTheme();
+  const [activeTheme, settings] = await Promise.all([
+    getActiveTheme(),
+    getSiteSettings(),
+  ]);
   const cssVars = buildCssVars(activeTheme.preset, activeTheme.customOverrides);
 
   const isDefaultPreset = activeTheme.preset.id === mangaPreset.id;
@@ -50,6 +53,9 @@ export default async function RootLayout({
   return (
     <html lang="en" style={cssVars}>
       <head>
+        {settings.favicon_url && (
+          <link rel="icon" href={settings.favicon_url} />
+        )}
         {googleFontsUrl && (
           <>
             <link rel="preconnect" href="https://fonts.googleapis.com" />

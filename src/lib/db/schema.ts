@@ -104,11 +104,14 @@ export const orders = sqliteTable("orders", {
   shippingAddress: text("shipping_address"),
   discountCode: text("discount_code"),
   discountAmount: integer("discount_amount").notNull().default(0),
+  recommendationCode: text("recommendation_code"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 }, (table) => ([
   index("idx_orders_status").on(table.status),
   index("idx_orders_customer_id").on(table.customerId),
+  index("idx_orders_created_at").on(table.createdAt),
+  index("idx_orders_payment_status").on(table.paymentStatus),
 ]));
 
 export const orderLineItems = sqliteTable("order_line_items", {
@@ -117,6 +120,7 @@ export const orderLineItems = sqliteTable("order_line_items", {
     .notNull()
     .references(() => orders.id, { onDelete: "cascade" }),
   productId: text("product_id").references(() => products.id),
+  variantId: text("variant_id"),
   title: text("title").notNull(),
   quantity: integer("quantity").notNull(),
   unitPrice: integer("unit_price").notNull(),
@@ -142,8 +146,14 @@ export const analyticsEvents = sqliteTable("analytics_events", {
   path: text("path").notNull(),
   referrer: text("referrer"),
   userAgent: text("user_agent"),
+  metadata: text("metadata"),
   createdAt: text("created_at").notNull(),
-});
+}, (table) => ([
+  index("idx_analytics_events_created_at").on(table.createdAt),
+  index("idx_analytics_events_event").on(table.event),
+  index("idx_analytics_events_visitor_id").on(table.visitorId),
+  index("idx_analytics_events_path").on(table.path),
+]));
 
 export const analyticsDailySummary = sqliteTable("analytics_daily_summary", {
   id: text("id").primaryKey(),
@@ -183,6 +193,72 @@ export const discountCodeUses = sqliteTable("discount_code_uses", {
   usedAt: text("used_at").notNull(),
 });
 
+export const recommendationCodes = sqliteTable("recommendation_codes", {
+  id: text("id").primaryKey(),
+  code: text("code").notNull().unique(),
+  orderId: text("order_id")
+    .notNull()
+    .references(() => orders.id, { onDelete: "cascade" }),
+  customerEmail: text("customer_email").notNull(),
+  createdAt: text("created_at").notNull(),
+}, (table) => ([
+  uniqueIndex("idx_recommendation_codes_code").on(table.code),
+]));
+
+export const recommendationCodeUses = sqliteTable("recommendation_code_uses", {
+  id: text("id").primaryKey(),
+  codeId: text("code_id")
+    .notNull()
+    .references(() => recommendationCodes.id, { onDelete: "cascade" }),
+  usedByEmail: text("used_by_email").notNull(),
+  orderId: text("order_id")
+    .notNull()
+    .references(() => orders.id, { onDelete: "cascade" }),
+  usedAt: text("used_at").notNull(),
+});
+
+export const productOptionTypes = sqliteTable("product_option_types", {
+  id: text("id").primaryKey(),
+  productId: text("product_id")
+    .notNull()
+    .references(() => products.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  sortOrder: integer("sort_order").notNull().default(0),
+});
+
+export const productOptionValues = sqliteTable("product_option_values", {
+  id: text("id").primaryKey(),
+  optionTypeId: text("option_type_id")
+    .notNull()
+    .references(() => productOptionTypes.id, { onDelete: "cascade" }),
+  label: text("label").notNull(),
+  colorHex: text("color_hex"),
+  sortOrder: integer("sort_order").notNull().default(0),
+});
+
+export const productVariants = sqliteTable("product_variants", {
+  id: text("id").primaryKey(),
+  productId: text("product_id")
+    .notNull()
+    .references(() => products.id, { onDelete: "cascade" }),
+  sku: text("sku"),
+  priceOverride: integer("price_override"),
+  stock: integer("stock"),
+  imageUrl: text("image_url"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const productVariantCombinations = sqliteTable("product_variant_combinations", {
+  id: text("id").primaryKey(),
+  variantId: text("variant_id")
+    .notNull()
+    .references(() => productVariants.id, { onDelete: "cascade" }),
+  optionValueId: text("option_value_id")
+    .notNull()
+    .references(() => productOptionValues.id, { onDelete: "cascade" }),
+});
+
 export const siteSettings = sqliteTable("site_settings", {
   key: text("key").primaryKey(),
   value: text("value").notNull(),
@@ -202,6 +278,8 @@ export const productsRelations = relations(products, ({ one, many }) => ({
     references: [categories.id],
   }),
   images: many(productImages),
+  optionTypes: many(productOptionTypes),
+  variants: many(productVariants),
 }));
 
 export const productImagesRelations = relations(productImages, ({ one }) => ({
@@ -258,5 +336,54 @@ export const discountCodeUsesRelations = relations(discountCodeUses, ({ one }) =
   code: one(discountCodes, {
     fields: [discountCodeUses.codeId],
     references: [discountCodes.id],
+  }),
+}));
+
+export const recommendationCodesRelations = relations(recommendationCodes, ({ one, many }) => ({
+  order: one(orders, {
+    fields: [recommendationCodes.orderId],
+    references: [orders.id],
+  }),
+  uses: many(recommendationCodeUses),
+}));
+
+export const recommendationCodeUsesRelations = relations(recommendationCodeUses, ({ one }) => ({
+  code: one(recommendationCodes, {
+    fields: [recommendationCodeUses.codeId],
+    references: [recommendationCodes.id],
+  }),
+}));
+
+export const productOptionTypesRelations = relations(productOptionTypes, ({ one, many }) => ({
+  product: one(products, {
+    fields: [productOptionTypes.productId],
+    references: [products.id],
+  }),
+  values: many(productOptionValues),
+}));
+
+export const productOptionValuesRelations = relations(productOptionValues, ({ one }) => ({
+  optionType: one(productOptionTypes, {
+    fields: [productOptionValues.optionTypeId],
+    references: [productOptionTypes.id],
+  }),
+}));
+
+export const productVariantsRelations = relations(productVariants, ({ one, many }) => ({
+  product: one(products, {
+    fields: [productVariants.productId],
+    references: [products.id],
+  }),
+  combinations: many(productVariantCombinations),
+}));
+
+export const productVariantCombinationsRelations = relations(productVariantCombinations, ({ one }) => ({
+  variant: one(productVariants, {
+    fields: [productVariantCombinations.variantId],
+    references: [productVariants.id],
+  }),
+  optionValue: one(productOptionValues, {
+    fields: [productVariantCombinations.optionValueId],
+    references: [productOptionValues.id],
   }),
 }));

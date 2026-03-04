@@ -36,6 +36,8 @@ export async function GET(_req: NextRequest, context: RouteContext) {
     ".png": "image/png",
     ".webp": "image/webp",
     ".gif": "image/gif",
+    ".ico": "image/x-icon",
+    ".svg": "image/svg+xml",
   };
 
   return new NextResponse(file, {
