@@ -16,14 +16,14 @@ A self-hosted e-commerce platform for small product catalogs, built with Next.js
 
 ### Admin Dashboard (`/admin`)
 - **Multi-Admin Authentication** - HMAC-signed cookie session, multiple admin accounts with scrypt password hashing, env-var fallback for initial setup
-- **Dashboard** - Stats overview (products, orders, customers, revenue) + kanban-lite order columns (Unfulfilled/Shipped/Delivered) with quick action buttons
+- **Dashboard** - Stats overview (products, orders, customers, revenue, visitors, page views) + sparklines + kanban-lite order columns
 - **Product Management** - Full CRUD with category, status, tags, price, multi-image upload, product variants (option types × values)
 - **Category Management** - Admin-manageable categories with inline create/edit, delete protection, sort ordering
 - **Order Management** - Order list with filter tabs, detail view with visual status timeline, flexible status transitions, payment status (unpaid/paid/refunded)
 - **Customer Management** - Customer list with contact info and order history, automatic deduplication by email
 - **Admin User Management** - Create/delete admin accounts, view last login times (`/admin/settings/users`)
 - **Discount Codes** - Percentage/fixed discounts, per-customer limits, expiry dates, usage tracking
-- **Analytics** - Page-view tracking, daily aggregation, dashboard sparklines
+- **Analytics Dashboard** (`/admin/analytics`) - Conversion funnel (5-stage), traffic sources, top pages, best sellers, revenue by category, customer insights (new/repeat/geography), discount code ROI, recommendation code performance, date range filtering (7D/30D/90D)
 - **Stock Management** - Per-product stock levels, "Only N left" badges, checkout stock validation
 - **Site Settings** - Shop name, owner email, default shipping address, favicon, theme config, recommendation codes toggle
 

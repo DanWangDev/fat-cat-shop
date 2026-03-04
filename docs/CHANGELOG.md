@@ -4,27 +4,20 @@ All notable changes to this project are documented here, grouped by release phas
 
 ---
 
-## Analytics Enhancement — Phase 1: Event Enrichment (2026-03-04) — `feat/test-feedback`
+## Analytics Enhancement (2026-03-04) — `feat/test-feedback`
 
-Foundation work for the upcoming analytics dashboard.
+Comprehensive analytics dashboard with 6 report sections, conversion funnel tracking, and enriched event collection.
 
-### Schema Changes
-- Added `metadata` text column (nullable JSON) to `analytics_events` table
-- Added 4 performance indexes on `analytics_events`: `created_at`, `event`, `visitor_id`, `path`
-- Added 2 performance indexes on `orders`: `created_at`, `payment_status`
+### Phase 1 — Schema & Event Enrichment
 
 **Schema migration:** `0006_cultured_skrulls.sql`
+- Added `metadata` text column (nullable JSON) to `analytics_events`
+- Added 4 indexes on `analytics_events` + 2 indexes on `orders`
 
-### Event Tracking Enrichment
-- `/api/track` now accepts optional `metadata` object (stored as JSON)
-- `AnalyticsTracker` fires `product_view` event (with slug) on product detail pages
-- `AddToCartButton` fires `add_to_cart` event with productId, title, price, quantity
-- `ProductVariantSelector` fires `add_to_cart` event with variant context
-- Checkout page fires `checkout_started` event on mount (once per session)
-- Checkout page fires `purchase` event after successful order with orderNumber and total
-- Exported `trackEvent()` utility from `analytics-tracker.tsx` for reuse
+**Event tracking:**
+- `/api/track` accepts optional `metadata` object
+- New events: `product_view`, `add_to_cart`, `checkout_started`, `purchase`
 
-### New Funnel Events
 | Event | Trigger | Metadata |
 |-------|---------|----------|
 | `pageview` | Every storefront route change | — |
@@ -32,6 +25,42 @@ Foundation work for the upcoming analytics dashboard.
 | `add_to_cart` | Add to cart click | `{ productId, title, price, quantity }` |
 | `checkout_started` | Checkout page mount (with items) | `{ itemCount, subtotal }` |
 | `purchase` | Successful order submission | `{ orderNumber, total }` |
+
+### Phase 2 — Query Library
+
+New `src/lib/analytics-queries.ts` with 6 query functions:
+- `getTrafficStats()` — visitors, pageviews, top pages, referrer breakdown, daily series
+- `getFunnelStats()` — 5-stage conversion funnel (visit → product view → cart → checkout → purchase)
+- `getProductStats()` — best sellers, revenue by category
+- `getCustomerStats()` — new/repeat customers, repeat rate, top customers, geography
+- `getCampaignStats()` — discount code ROI, recommendation code viral loop
+- `getRevenueStats()` — revenue, AOV, daily series, payment method breakdown
+
+### Phase 3 — Analytics Page & UI Components
+
+**New page:** `/admin/analytics` with date range tabs (7D / 30D / 90D)
+
+**New shared components** (`src/components/admin/analytics/`):
+- `stat-card.tsx` — metric card with optional sparkline
+- `section-card.tsx` — titled section wrapper
+- `data-table.tsx` — generic table component
+- `date-range-tabs.tsx` — client-side range selector
+
+**6 section components:**
+- `traffic-section.tsx` — visitors, pageviews, top pages, traffic sources
+- `funnel-section.tsx` — 5-stage conversion funnel with proportional bars and drop-off rates
+- `products-section.tsx` — best sellers, revenue by category
+- `customers-section.tsx` — new/repeat stats, top customers, geographic breakdown
+- `campaigns-section.tsx` — discount code and recommendation code performance
+- `revenue-section.tsx` — revenue, AOV, sparklines, payment method breakdown
+
+**Sidebar:** Added "Analytics" link with bar-chart icon after Dashboard
+
+### Phase 4 — Dashboard Enhancement
+
+- Added "Visitors Today" and "Page Views Today" stat cards with sparklines
+- Changed grid to 3-column layout to accommodate 6 cards
+- Added "View Full Analytics →" link below stat cards
 
 ---
 
