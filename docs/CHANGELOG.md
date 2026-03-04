@@ -4,6 +4,37 @@ All notable changes to this project are documented here, grouped by release phas
 
 ---
 
+## Analytics Enhancement — Phase 1: Event Enrichment (2026-03-04) — `feat/test-feedback`
+
+Foundation work for the upcoming analytics dashboard.
+
+### Schema Changes
+- Added `metadata` text column (nullable JSON) to `analytics_events` table
+- Added 4 performance indexes on `analytics_events`: `created_at`, `event`, `visitor_id`, `path`
+- Added 2 performance indexes on `orders`: `created_at`, `payment_status`
+
+**Schema migration:** `0006_cultured_skrulls.sql`
+
+### Event Tracking Enrichment
+- `/api/track` now accepts optional `metadata` object (stored as JSON)
+- `AnalyticsTracker` fires `product_view` event (with slug) on product detail pages
+- `AddToCartButton` fires `add_to_cart` event with productId, title, price, quantity
+- `ProductVariantSelector` fires `add_to_cart` event with variant context
+- Checkout page fires `checkout_started` event on mount (once per session)
+- Checkout page fires `purchase` event after successful order with orderNumber and total
+- Exported `trackEvent()` utility from `analytics-tracker.tsx` for reuse
+
+### New Funnel Events
+| Event | Trigger | Metadata |
+|-------|---------|----------|
+| `pageview` | Every storefront route change | — |
+| `product_view` | Product detail page | `{ slug }` |
+| `add_to_cart` | Add to cart click | `{ productId, title, price, quantity }` |
+| `checkout_started` | Checkout page mount (with items) | `{ itemCount, subtotal }` |
+| `purchase` | Successful order submission | `{ orderNumber, total }` |
+
+---
+
 ## Testing Feedback Fixes (2026-02-19) — `feat/test-feedback`
 
 Addresses 9 items from real-world testing feedback after Tier 3 completion. Two rounds of fixes.

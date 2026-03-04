@@ -7,6 +7,7 @@ import { z } from "zod/v4";
 const trackSchema = z.object({
   event: z.string().min(1).max(50),
   path: z.string().min(1).max(500),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -32,6 +33,7 @@ export async function POST(req: NextRequest) {
         path: parsed.data.path,
         referrer: req.headers.get("referer") ?? null,
         userAgent: req.headers.get("user-agent") ?? null,
+        metadata: parsed.data.metadata ? JSON.stringify(parsed.data.metadata) : null,
         createdAt: now,
       })
       .run();

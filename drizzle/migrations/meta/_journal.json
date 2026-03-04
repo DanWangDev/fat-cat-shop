@@ -43,6 +43,13 @@
       "when": 1771501661942,
       "tag": "0005_stiff_bastion",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1772618922340,
+      "tag": "0006_cultured_skrulls",
+      "breakpoints": true
     }
   ]
 }

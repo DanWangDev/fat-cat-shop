@@ -110,6 +110,8 @@ export const orders = sqliteTable("orders", {
 }, (table) => ([
   index("idx_orders_status").on(table.status),
   index("idx_orders_customer_id").on(table.customerId),
+  index("idx_orders_created_at").on(table.createdAt),
+  index("idx_orders_payment_status").on(table.paymentStatus),
 ]));
 
 export const orderLineItems = sqliteTable("order_line_items", {
@@ -144,8 +146,14 @@ export const analyticsEvents = sqliteTable("analytics_events", {
   path: text("path").notNull(),
   referrer: text("referrer"),
   userAgent: text("user_agent"),
+  metadata: text("metadata"),
   createdAt: text("created_at").notNull(),
-});
+}, (table) => ([
+  index("idx_analytics_events_created_at").on(table.createdAt),
+  index("idx_analytics_events_event").on(table.event),
+  index("idx_analytics_events_visitor_id").on(table.visitorId),
+  index("idx_analytics_events_path").on(table.path),
+]));
 
 export const analyticsDailySummary = sqliteTable("analytics_daily_summary", {
   id: text("id").primaryKey(),

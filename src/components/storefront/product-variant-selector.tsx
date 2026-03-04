@@ -88,6 +88,17 @@ export function ProductVariantSelector({ product, variantData }: ProductVariantS
       },
       qty,
     );
+
+    fetch("/api/track", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        event: "add_to_cart",
+        path: window.location.pathname,
+        metadata: { productId: product.id, title: product.title, price: displayPrice, quantity: qty, variantId: matchedVariant.id },
+      }),
+    }).catch(() => {});
+
     setAdded(true);
     setTimeout(() => {
       setAdded(false);

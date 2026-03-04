@@ -3,7 +3,7 @@
 import { useCartStore } from "@/stores/cart-store";
 import { formatPrice } from "@/lib/utils";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function CheckoutPage() {
@@ -54,6 +54,8 @@ export default function CheckoutPage() {
   const [discountError, setDiscountError] = useState<string | null>(null);
   const [discountLoading, setDiscountLoading] = useState(false);
 
+  const checkoutTrackedRef = useRef(false);
+
   const [recCodeEnabled, setRecCodeEnabled] = useState(false);
   const [recCodeInput, setRecCodeInput] = useState("");
   const [recCodeValid, setRecCodeValid] = useState<boolean | null>(null);
@@ -84,6 +86,21 @@ export default function CheckoutPage() {
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (mounted && items.length > 0 && !checkoutTrackedRef.current) {
+      checkoutTrackedRef.current = true;
+      fetch("/api/track", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event: "checkout_started",
+          path: "/checkout",
+          metadata: { itemCount: items.length, subtotal: totalPrice() },
+        }),
+      }).catch(() => {});
+    }
+  }, [mounted, items.length]);
 
   if (!mounted) {
     return (
@@ -227,6 +244,19 @@ export default function CheckoutPage() {
         window.location.href = data.checkoutUrl;
         return;
       }
+
+      fetch("/api/track", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event: "purchase",
+          path: "/checkout",
+          metadata: {
+            orderNumber: data.orderNumber,
+            total: Math.max(totalPrice() - (appliedDiscount?.discountAmount ?? 0), 0),
+          },
+        }),
+      }).catch(() => {});
 
       clearCart();
       const successUrl = data.recommendationCode

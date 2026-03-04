@@ -29,6 +29,17 @@ export function AddToCartButton({ product, variantId, variantLabel, disabled }: 
       variantId: variantId ?? null,
       variantLabel: variantLabel ?? null,
     }, qty);
+
+    fetch("/api/track", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        event: "add_to_cart",
+        path: window.location.pathname,
+        metadata: { productId: product.id, title: product.title, price: product.price, quantity: qty },
+      }),
+    }).catch(() => {});
+
     setAdded(true);
     setTimeout(() => {
       setAdded(false);
