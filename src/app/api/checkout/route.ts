@@ -396,6 +396,35 @@ export async function POST(req: NextRequest) {
         .run();
     }
 
+    // Generate recommendation code if feature is enabled
+    let newRecCode: string | null = null;
+    const settings = await getSiteSettings();
+    if (settings.enable_recommendation_codes === "true") {
+      newRecCode = generateRecommendationCode();
+      // Ensure uniqueness
+      let attempts = 0;
+      while (attempts < 10) {
+        const existing = db
+          .select()
+          .from(recommendationCodes)
+          .where(eq(recommendationCodes.code, newRecCode))
+          .get();
+        if (!existing) break;
+        newRecCode = generateRecommendationCode();
+        attempts++;
+      }
+
+      db.insert(recommendationCodes)
+        .values({
+          id: nanoid(),
+          code: newRecCode,
+          orderId,
+          customerEmail: parsed.email.toLowerCase(),
+          createdAt: now,
+        })
+        .run();
+    }
+
     // Send order confirmation email (fire-and-forget)
     const emailItems = lineItems.map((li) => ({
       title: li.title,
