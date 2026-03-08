@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
 import { db } from "@/lib/db";
 import {
   customers,
@@ -15,11 +16,12 @@ import {
 } from "@/lib/db/schema";
 import { checkoutSchema } from "@/lib/validators";
 import { nanoid } from "nanoid";
-import { eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod/v4";
 import { sendOrderConfirmation, sendOwnerNewOrder } from "@/lib/email";
 import { computeDiscountAmount } from "@/app/api/validate-discount/route";
 import { getSiteSettings } from "@/lib/site-settings";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 const checkoutRequestSchema = checkoutSchema.extend({
   items: z.array(
@@ -34,8 +36,8 @@ const checkoutRequestSchema = checkoutSchema.extend({
 function generateRecommendationCode(): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   let code = "FC-";
-  for (let i = 0; i < 4; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(crypto.randomInt(chars.length));
   }
   return code;
 }
@@ -43,12 +45,29 @@ function generateRecommendationCode(): string {
 function generateOrderNumber(): string {
   const now = new Date();
   const datePart = now.toISOString().slice(2, 10).replace(/-/g, "");
-  const randomPart = Math.random().toString(36).substring(2, 6).toUpperCase();
+  const bytes = crypto.randomBytes(3);
+  const randomPart = bytes.toString("hex").slice(0, 4).toUpperCase();
   return `FC-${datePart}-${randomPart}`;
 }
 
 export async function POST(req: NextRequest) {
   try {
+    // Rate limit: 10 requests per minute per IP
+    const ip = getClientIp(req);
+    const limit = checkRateLimit(`checkout:${ip}`, {
+      maxRequests: 10,
+      windowMs: 60 * 1000,
+    });
+    if (!limit.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(limit.retryAfterSeconds) },
+        },
+      );
+    }
+
     const body = await req.json();
     const parsed = checkoutRequestSchema.parse(body);
 
@@ -75,7 +94,7 @@ export async function POST(req: NextRequest) {
       const product = productMap.get(item.productId);
       if (!product || product.status !== "active") {
         return NextResponse.json(
-          { error: `Product not found or unavailable: ${item.productId}` },
+          { error: "One or more products are unavailable" },
           { status: 400 },
         );
       }
@@ -85,7 +104,7 @@ export async function POST(req: NextRequest) {
         const variant = variantMap.get(item.variantId);
         if (!variant) {
           return NextResponse.json(
-            { error: `Variant not found: ${item.variantId}` },
+            { error: "Selected option is no longer available" },
             { status: 400 },
           );
         }
@@ -291,14 +310,19 @@ export async function POST(req: NextRequest) {
         .run();
     }
 
-    // Decrement stock atomically for each item
+    // Decrement stock atomically with guard against negative stock
     for (const item of parsed.items) {
       if (item.variantId) {
         const variant = variantMap.get(item.variantId);
         if (variant && variant.stock !== null) {
           db.update(productVariants)
             .set({ stock: sql`stock - ${item.quantity}` })
-            .where(eq(productVariants.id, item.variantId))
+            .where(
+              and(
+                eq(productVariants.id, item.variantId),
+                sql`stock >= ${item.quantity}`,
+              ),
+            )
             .run();
         }
       } else {
@@ -306,7 +330,12 @@ export async function POST(req: NextRequest) {
         if (product.stock !== null) {
           db.update(products)
             .set({ stock: sql`stock - ${item.quantity}` })
-            .where(eq(products.id, item.productId))
+            .where(
+              and(
+                eq(products.id, item.productId),
+                sql`stock >= ${item.quantity}`,
+              ),
+            )
             .run();
         }
       }
@@ -336,6 +365,35 @@ export async function POST(req: NextRequest) {
           .where(eq(orders.id, orderId))
           .run();
       }
+    }
+
+    // Generate recommendation code if feature is enabled
+    let newRecCode: string | null = null;
+    const settings = await getSiteSettings();
+    if (settings.enable_recommendation_codes === "true") {
+      newRecCode = generateRecommendationCode();
+      // Ensure uniqueness
+      let attempts = 0;
+      while (attempts < 10) {
+        const existing = db
+          .select()
+          .from(recommendationCodes)
+          .where(eq(recommendationCodes.code, newRecCode))
+          .get();
+        if (!existing) break;
+        newRecCode = generateRecommendationCode();
+        attempts++;
+      }
+
+      db.insert(recommendationCodes)
+        .values({
+          id: nanoid(),
+          code: newRecCode,
+          orderId,
+          customerEmail: parsed.email.toLowerCase(),
+          createdAt: now,
+        })
+        .run();
     }
 
     // Generate recommendation code if feature is enabled
@@ -413,6 +471,10 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
     }
-    throw err;
+    console.error("Checkout error:", err);
+    return NextResponse.json(
+      { error: "Checkout failed. Please try again." },
+      { status: 500 },
+    );
   }
 }

@@ -10,7 +10,12 @@ const createAdminSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
   email: z.email("Invalid email address"),
   displayName: z.string().min(1, "Display name is required"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[a-z]/, "Password must contain a lowercase letter")
+    .regex(/[A-Z]/, "Password must contain an uppercase letter")
+    .regex(/\d/, "Password must contain a digit"),
 });
 
 export async function GET() {
