@@ -139,8 +139,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ colors });
   } catch (err) {
+    console.error("AI theme generation error:", err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Generation failed" },
+      { error: "Theme generation failed. Please try again." },
       { status: 500 },
     );
   }

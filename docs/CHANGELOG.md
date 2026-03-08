@@ -4,6 +4,46 @@ All notable changes to this project are documented here, grouped by release phas
 
 ---
 
+## Security Hardening (2026-03-08) — `feat/security-hardening`
+
+Comprehensive security hardening addressing 18+ vulnerabilities across auth, input validation, headers, and application logic.
+
+### Phase 1 — Auth & Session Hardening
+- Removed hardcoded credential defaults; `SESSION_SECRET`, `ADMIN_USERNAME`, `ADMIN_PASSWORD` now required via `requireEnv()`
+- Removed legacy `{ user: "admin" }` backward-compat session support
+- Cookie: `sameSite: "strict"`, `maxAge` reduced from 7 days to 1 day, simplified `secure` flag
+
+### Phase 2 — Rate Limiting
+- **New:** `src/lib/rate-limit.ts` — in-memory sliding window with periodic cleanup
+- Login: 5 attempts / 15 min per IP; Checkout: 10 req / min; Customer lookup: 10 req / min
+- Returns 429 with `Retry-After` header
+
+### Phase 3 — Security Headers, CSRF & Admin Gate
+- Security headers via `next.config.ts`: X-Frame-Options DENY, CSP, HSTS, nosniff, Permissions-Policy, Referrer-Policy
+- **New:** `src/middleware.ts` — CSRF origin validation on API mutations + `ADMIN_ACCESS_TOKEN` gate (returns 404 on unauthorized)
+- **New:** `public/robots.txt` — Disallow `/admin/`
+
+### Phase 4 — Input Validation Hardening
+- Added `.max()` constraints to all unbounded string fields in `validators.ts`
+- `colorHex`: regex-validated hex; `slug`: lowercase alphanumeric with hyphens; `imageUrl`: URL validation
+- Login route: replaced manual checks with Zod schema
+- Password strength: min 8 chars + uppercase + lowercase + digit
+
+### Phase 5 — Information Disclosure Fixes
+- Checkout errors no longer leak product/variant IDs
+- Checkout catch-all and AI theme generate return generic error messages
+
+### Phase 6 — Theme Hot-Reload Security
+- `postMessage` origin check; whitelist `--` prefixed CSS properties; skip values > 200 chars
+
+### Phase 7 — Checkout Hardening
+- `crypto.randomInt()` replaces `Math.random()` for recommendation codes and order numbers
+- Recommendation code length increased from 4 to 6 characters
+- Stock decrement guarded with `WHERE stock >= quantity` to prevent negative stock
+- Order tracking: `JSON.parse` wrapped in try-catch
+
+---
+
 ## Analytics Enhancement (2026-03-04) — `feat/test-feedback`
 
 Comprehensive analytics dashboard with 6 report sections, conversion funnel tracking, and enriched event collection.

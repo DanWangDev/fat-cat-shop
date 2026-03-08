@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { customers, customerAddresses } from "@/lib/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { z } from "zod/v4";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 const emailQuerySchema = z.object({
   email: z.string().email(),
@@ -10,6 +11,22 @@ const emailQuerySchema = z.object({
 
 export async function GET(req: NextRequest) {
   try {
+    // Rate limit: 10 requests per minute per IP
+    const ip = getClientIp(req);
+    const limit = checkRateLimit(`customer-lookup:${ip}`, {
+      maxRequests: 10,
+      windowMs: 60 * 1000,
+    });
+    if (!limit.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(limit.retryAfterSeconds) },
+        },
+      );
+    }
+
     const emailParam = req.nextUrl.searchParams.get("email") ?? "";
     const parsed = emailQuerySchema.parse({ email: emailParam });
 

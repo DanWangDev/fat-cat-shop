@@ -67,7 +67,16 @@ Dynamic theming with runtime CSS variable switching:
 
 ### Auth
 
-Cookie-based sessions with HMAC signing (no external auth library). Multi-admin support with scrypt password hashing. Env vars (`ADMIN_USERNAME`/`ADMIN_PASSWORD`) used as fallback for initial setup. Session logic in `src/lib/auth.ts`.
+Cookie-based sessions with HMAC signing (no external auth library). Multi-admin support with scrypt password hashing. Env vars (`ADMIN_USERNAME`/`ADMIN_PASSWORD`) used as fallback for initial setup (required — app throws if not set). Session logic in `src/lib/auth.ts`. Sessions expire after 1 day. Cookies use `sameSite: "strict"`.
+
+### Security
+
+- **Rate limiting**: In-memory sliding window (`src/lib/rate-limit.ts`). Applied to login (5/15min), checkout (10/min), customer lookup (10/min).
+- **CSRF**: `src/middleware.ts` validates `Origin` header on API mutations.
+- **Admin access gate**: If `ADMIN_ACCESS_TOKEN` env var is set, `/admin` routes require `?access=<token>` (sets a 4-hour cookie on first valid access). Returns 404 on unauthorized.
+- **Security headers**: CSP, X-Frame-Options DENY, HSTS, nosniff, Permissions-Policy — configured in `next.config.ts` `headers()`.
+- **Input validation**: All string fields have `.max()` constraints. Passwords require uppercase + lowercase + digit. Slugs and color hex values are regex-validated.
+- **Env vars required**: `SESSION_SECRET`, `ADMIN_USERNAME`, `ADMIN_PASSWORD` must be set (no hardcoded defaults).
 
 ### Site Settings
 

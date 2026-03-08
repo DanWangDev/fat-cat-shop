@@ -39,9 +39,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const shippingAddress = order.shippingAddress
-      ? JSON.parse(order.shippingAddress)
-      : null;
+    let shippingAddress = null;
+    if (order.shippingAddress) {
+      try {
+        shippingAddress = JSON.parse(order.shippingAddress);
+      } catch {
+        shippingAddress = null;
+      }
+    }
 
     const statusHistory = order.statusHistory
       .map((entry) => ({
