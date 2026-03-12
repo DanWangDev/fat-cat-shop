@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { discountCodes, discountCodeUses } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
+import { computeDiscountAmount } from "@/lib/discounts";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -76,17 +77,4 @@ export async function GET(req: NextRequest) {
     value: discount.value,
     code: discount.code,
   });
-}
-
-export function computeDiscountAmount(
-  type: string,
-  value: number,
-  subtotal: number,
-): number {
-  if (type === "percentage") {
-    // value is in basis points (1000 = 10%)
-    return Math.min(Math.floor((subtotal * value) / 10000), subtotal);
-  }
-  // fixed: value is in cents
-  return Math.min(value, subtotal);
 }
